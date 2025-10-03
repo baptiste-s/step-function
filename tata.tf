@@ -1,4 +1,3 @@
-# Step Function avec Map pour paralléliser
 resource "aws_sfn_state_machine" "postgres_test" {
   name     = "postgres-test-parallel"
   role_arn = aws_iam_role.step_functions_role.arn
@@ -22,6 +21,11 @@ resource "aws_sfn_state_machine" "postgres_test" {
         Type       = "Map"
         ItemsPath  = "$.config.workers"
         MaxConcurrency = 0
+        Parameters = {
+          "worker_index.$"       = "$.Map.Item.Value"
+          "inserts_per_worker.$" = "$.config.inserts_per_worker"
+          "table_name.$"         = "$.config.table_name"
+        }
         ItemProcessor = {
           ProcessorConfig = {
             Mode = "INLINE"
@@ -34,7 +38,7 @@ resource "aws_sfn_state_machine" "postgres_test" {
               Parameters = {
                 "FunctionName" = aws_lambda_function.worker.arn
                 "Payload" = {
-                  "worker_id.$"    = "States.Format('worker-{}', $)"
+                  "worker_id.$"    = "States.Format('worker-{}', $.worker_index)"
                   "num_inserts.$"  = "$.inserts_per_worker"
                   "table_name.$"   = "$.table_name"
                 }
