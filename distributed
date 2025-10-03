@@ -1,0 +1,41 @@
+{
+  "Comment": "Test PostgreSQL avec Lambdas parallèles - Distributed Map",
+  "StartAt": "GenerateWorkers",
+  "States": {
+    "GenerateWorkers": {
+      "Type": "Pass",
+      "Parameters": {
+        "workers.$": "States.ArrayRange(1, $.num_workers, 1)"
+      },
+      "Next": "MapWorkers"
+    },
+    "MapWorkers": {
+      "Type": "Map",
+      "ItemsPath": "$.workers",
+      "MaxConcurrency": 1000,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "DISTRIBUTED",
+          "ExecutionType": "STANDARD"
+        },
+        "StartAt": "InvokeWorker",
+        "States": {
+          "InvokeWorker": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "arn:aws:lambda:eu-west-1:VOTRE-ACCOUNT-ID:function:postgres-test-worker",
+              "Payload": {
+                "num_inserts": 2000,
+                "table_name": "test_data",
+                "insert_mode": "batch"
+              }
+            },
+            "End": true
+          }
+        }
+      },
+      "End": true
+    }
+  }
+}
