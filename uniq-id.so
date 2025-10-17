@@ -1,0 +1,57 @@
+// yor_auto_unique_id.go
+// Plugin Yor qui génère automatiquement unique_id avec md5 du nom de la ressource
+// AUCUNE liste à maintenir - 100% automatique !
+//
+// Compilation : go build -buildmode=plugin -o yor_auto_unique_id.so yor_auto_unique_id.go
+// Usage : yor tag -d . --custom-tagging ./yor_auto_unique_id.so
+
+package main
+
+import (
+	"fmt"
+	"github.com/bridgecrewio/yor/src/common/structure"
+	"github.com/bridgecrewio/yor/src/common/tagging/tags"
+)
+
+// UniqueIDTag génère unique_id avec md5 du nom de la ressource
+type UniqueIDTag struct {
+	key   string
+	value string
+}
+
+func (t *UniqueIDTag) Init() {
+	t.key = "unique_id"
+}
+
+func (t *UniqueIDTag) GetKey() string {
+	return t.key
+}
+
+func (t *UniqueIDTag) GetValue() string {
+	return t.value
+}
+
+func (t *UniqueIDTag) GetPriority() int {
+	return 0
+}
+
+// CalculateValue génère l'expression Terraform avec md5 du nom de la ressource
+func (t *UniqueIDTag) CalculateValue(data interface{}) (interface{}, error) {
+	// Extraire le nom de la ressource depuis le bloc
+	block, ok := data.(structure.IBlock)
+	if !ok {
+		return t, fmt.Errorf("invalid data type")
+	}
+	
+	// Récupérer l'ID de la ressource (format: "type.name" ex: "aws_s3_bucket.bucket1")
+	resourceID := block.GetResourceID()
+	
+	// Générer l'expression Terraform
+	// md5("aws_s3_bucket.bucket1") génère un hash unique et stable
+	t.value = fmt.Sprintf(`${local.env}-${local.feature_team}-${md5("%s")}`, resourceID)
+	
+	return t, nil
+}
+
+// ExtraTags expose le tag au framework Yor
+var ExtraTags = []interface{}{&UniqueIDTag{}}
