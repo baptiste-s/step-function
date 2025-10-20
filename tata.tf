@@ -1,27 +1,32 @@
-def insert_parallel_mode(db_host, db_name, db_user, db_password, db_port,
-                        table_name, worker_id, num_inserts, num_threads):
-    """Mode parallèle - plusieurs threads avec connexions séparées (TRÈS RAPIDE)"""
-    
-    def insert_chunk(thread_id, chunk_size):
-        """Fonction exécutée par chaque thread"""
-        # CHAQUE THREAD A SA PROPRE CONNEXION
-        conn = psycopg2.connect(
-            host=db_host, database=db_name, user=db_user,
-            password=db_password, port=db_port
-        )
-        cursor = conn.cursor()
-        
-        # ... fait ses inserts ...
-        
-        conn.close()
-        return successful, failed
-    
-    # Lance 10 threads en parallèle (par défaut)
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = []
-        for i in range(num_threads):
-            futures.append(executor.submit(insert_chunk, i, size))
-        
-        # Attend que tous les threads terminent
-        for future in as_completed(futures):
-            successful, failed = future.result()
+#!/bin/bash
+
+# --- Configuration ---
+STREAM_NAME="mon-stream-kinesis"
+DATA="Hello Kinesis!"  # contenu du record
+COUNT=50000            # nombre d'envois
+BATCH_SIZE=500         # max 500 par appel put-records
+
+# Encode la donnée une seule fois (base64 obligatoire)
+ENCODED_DATA=$(echo -n "$DATA" | base64)
+
+echo "Envoi de $COUNT records dans le stream '$STREAM_NAME'..."
+for ((i=0; i<COUNT; i+=BATCH_SIZE)); do
+  RECORDS="["
+
+  for ((j=0; j<BATCH_SIZE && i+j<COUNT; j++)); do
+    PARTITION_KEY="key-$((i+j))"
+    RECORDS+="{\"Data\":\"$ENCODED_DATA\", \"PartitionKey\":\"$PARTITION_KEY\"},"
+  done
+
+  # Supprime la dernière virgule et ferme le tableau JSON
+  RECORDS="${RECORDS%,}]"
+
+  aws kinesis put-records \
+    --stream-name "$STREAM_NAME" \
+    --records "$RECORDS" \
+    >/dev/null
+
+  echo "$((i+BATCH_SIZE)) records envoyés..."
+done
+
+echo "✅ Envoi terminé."
