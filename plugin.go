@@ -21,45 +21,28 @@ type UniqueIDTagGroup struct {
 	tagging.TagGroup
 }
 
+// Implémentez toutes les méthodes requises explicitement
 func (d *UniqueIDTagGroup) GetDefaultTags() []tags.ITag {
 	log.Println("[PLUGIN] GetDefaultTags appelé")
-	defaultTags := []tags.ITag{
-		&UniqueIDTag{},
-	}
-	for _, tag := range defaultTags {
-		tag.Init()
-	}
-	return defaultTags
+	tag := &UniqueIDTag{}
+	tag.Init()
+	return []tags.ITag{tag}
 }
 
-func (d *UniqueIDTagGroup) InitTagGroup(_ string, skippedTags []string, explicitlySpecifiedTags []string, options ...tagging.InitTagGroupOption) {
-	log.Printf("[PLUGIN] InitTagGroup appelé - skippedTags: %v, explicitlySpecifiedTags: %v\n", skippedTags, explicitlySpecifiedTags)
-	
-	opt := tagging.InitTagGroupOptions{
-		TagPrefix: "",
-	}
-	for _, fn := range options {
-		fn(&opt)
-	}
+func (d *UniqueIDTagGroup) InitTagGroup(dir string, skippedTags []string, explicitlySpecifiedTags []string, options ...tagging.InitTagGroupOption) {
+	log.Printf("[PLUGIN] InitTagGroup appelé - skippedTags: %v\n", skippedTags)
 	
 	d.SkippedTags = skippedTags
 	d.SpecifiedTags = explicitlySpecifiedTags
+	d.Dir = dir
 	d.SetTags(d.GetDefaultTags())
 	
 	log.Println("[PLUGIN] InitTagGroup terminé")
 }
 
 func (d *UniqueIDTagGroup) CreateTagsForBlock(block structure.IBlock) error {
-	log.Printf("[PLUGIN] CreateTagsForBlock appelé pour: %s (type: %s)\n", 
-		block.GetResourceID(), block.GetResourceType())
-	
-	err := d.UpdateBlockTags(block, block)
-	if err != nil {
-		log.Printf("[PLUGIN] ERREUR dans CreateTagsForBlock: %v\n", err)
-	} else {
-		log.Printf("[PLUGIN] CreateTagsForBlock OK pour %s\n", block.GetResourceID())
-	}
-	return err
+	log.Printf("[PLUGIN] CreateTagsForBlock appelé pour: %s\n", block.GetResourceID())
+	return d.UpdateBlockTags(block, block)
 }
 
 type UniqueIDTag struct {
@@ -69,59 +52,45 @@ type UniqueIDTag struct {
 func (t *UniqueIDTag) Init() {
 	log.Println("[PLUGIN] UniqueIDTag.Init appelé")
 	t.Key = "carma-name"
-	log.Printf("[PLUGIN] Tag key défini: %s\n", t.Key)
 }
 
 func (t *UniqueIDTag) CalculateValue(data interface{}) (tags.ITag, error) {
-	log.Println("[PLUGIN] ===== CalculateValue appelé =====")
+	log.Println("[PLUGIN] CalculateValue appelé")
 	
 	block, ok := data.(structure.IBlock)
 	if !ok {
-		log.Println("[PLUGIN] ERREUR: Impossible de convertir data en IBlock")
 		return nil, fmt.Errorf("failed to convert data to IBlock")
 	}
 
 	env := os.Getenv("YOR_ENV")
 	if env == "" {
 		env = "unknown"
-		log.Println("[PLUGIN] WARNING: YOR_ENV non défini, utilisation de 'unknown'")
 	}
 	
 	team := os.Getenv("YOR_TEAM")
 	if team == "" {
 		team = "unknown"
-		log.Println("[PLUGIN] WARNING: YOR_TEAM non défini, utilisation de 'unknown'")
 	}
 
 	resourceID := block.GetResourceID()
-	log.Printf("[PLUGIN] ResourceID: %s, Env: %s, Team: %s\n", resourceID, env, team)
-	
 	hash := md5.Sum([]byte(resourceID))
 	hashString := hex.EncodeToString(hash[:])
 	value := fmt.Sprintf("%s-%s-%s", env, team, hashString)
 	
-	log.Printf("[PLUGIN] Tag calculé: %s = %s\n", t.Key, value)
+	log.Printf("[PLUGIN] Tag généré: %s = %s\n", t.Key, value)
 	
-	newTag := &UniqueIDTag{}
-	newTag.Key = t.Key
-	newTag.Value = value
-	
-	return newTag, nil
+	return &tags.Tag{Key: t.Key, Value: value}, nil
 }
 
-// IMPORTANT : Exporter en tant que []interface{} au lieu de []tagging.ITagGroup
-var ExtraTagGroups []interface{}
+func (t *UniqueIDTag) GetPriority() int {
+	return 1
+}
 
-func init() {
-	log.Println("[PLUGIN] Initialisation de ExtraTagGroups")
-	
-	tagGroup := &UniqueIDTagGroup{}
-	
-	// Convertir explicitement en interface{}
-	ExtraTagGroups = []interface{}{
-		tagGroup,
-	}
-	
-	log.Printf("[PLUGIN] ExtraTagGroups configuré avec %d groupe(s)\n", len(ExtraTagGroups))
-	log.Printf("[PLUGIN] Type de tagGroup: %T\n", tagGroup)
+func (t *UniqueIDTag) GetDescription() string {
+	return "Custom Unique ID tag"
+}
+
+// Export - essayez avec le pointeur concret
+var ExtraTagGroups = []interface{}{
+	&UniqueIDTagGroup{},
 }
