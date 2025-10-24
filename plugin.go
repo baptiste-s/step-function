@@ -109,13 +109,19 @@ func (t *UniqueIDTag) CalculateValue(data interface{}) (tags.ITag, error) {
 	return newTag, nil
 }
 
-// IMPORTANT : Changez ExternalTagGroups en ExtraTagGroups !
-var ExtraTagGroups []tagging.ITagGroup
+// IMPORTANT : Exporter en tant que []interface{} au lieu de []tagging.ITagGroup
+var ExtraTagGroups []interface{}
 
 func init() {
 	log.Println("[PLUGIN] Initialisation de ExtraTagGroups")
-	ExtraTagGroups = []tagging.ITagGroup{
-		&UniqueIDTagGroup{},
+	
+	tagGroup := &UniqueIDTagGroup{}
+	
+	// Convertir explicitement en interface{}
+	ExtraTagGroups = []interface{}{
+		tagGroup,
 	}
+	
 	log.Printf("[PLUGIN] ExtraTagGroups configuré avec %d groupe(s)\n", len(ExtraTagGroups))
+	log.Printf("[PLUGIN] Type de tagGroup: %T\n", tagGroup)
 }
