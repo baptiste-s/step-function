@@ -46,7 +46,7 @@ func (d *UniqueIDTagGroup) InitTagGroup(_ string, skippedTags []string, explicit
 	d.SpecifiedTags = explicitlySpecifiedTags
 	d.SetTags(d.GetDefaultTags())
 	
-	log.Printf("[PLUGIN] InitTagGroup terminé - Tags configurés: %d\n", len(d.Tags))
+	log.Println("[PLUGIN] InitTagGroup terminé")
 }
 
 func (d *UniqueIDTagGroup) CreateTagsForBlock(block structure.IBlock) error {
@@ -94,7 +94,7 @@ func (t *UniqueIDTag) CalculateValue(data interface{}) (tags.ITag, error) {
 	}
 
 	resourceID := block.GetResourceID()
-	log.Printf("[PLUGIN] ResourceID: %s\n", resourceID)
+	log.Printf("[PLUGIN] ResourceID: %s, Env: %s, Team: %s\n", resourceID, env, team)
 	
 	hash := md5.Sum([]byte(resourceID))
 	hashString := hex.EncodeToString(hash[:])
