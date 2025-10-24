@@ -1,0 +1,31 @@
+# 1. Définir l'environnement Go que vous voulez utiliser
+export GOROOT=/data/users/ut3z1p/yor_poc/go
+export PATH=$GOROOT/bin:$PATH
+export GOPATH=/data/users/ut3z1p/go
+
+# Vérifier la version
+go version
+
+# 2. Recompiler YOR avec cette version de Go
+cd /data/users/ut3z1p/new
+git clean -fdx  # Nettoie tout
+go mod download
+go build -o yor .
+
+# 3. Recompiler le plugin avec la MÊME installation de Go
+cd /path/to/your/plugin
+rm -f yor_auto_unique_id.so
+go clean -cache -modcache  # Important !
+
+# S'assurer d'avoir les mêmes dépendances que yor
+go get github.com/bridgecrewio/yor@v0.1.200
+go mod tidy
+
+# Compiler le plugin
+go build -buildmode=plugin -o yor_auto_unique_id.so yor_auto_unique_id.go
+
+# 4. Tester
+export YOR_ENV="dev"
+export YOR_TEAM="myteam"
+cd /votre/dossier/terraform
+/data/users/ut3z1p/new/yor tag -d . --parsers Terraform --dry-run --custom-tagging /path/to/yor_auto_unique_id.so
