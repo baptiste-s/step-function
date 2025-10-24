@@ -1,0 +1,5 @@
+cd /data/users/ut3z1p/new
+grep -r "ExternalTagGroups\|custom-tagging\|plugin.Open" src/
+
+
+nm -D ../new/yor_auto_unique_id.so | grep -E "TagGroup|External|Extra"
