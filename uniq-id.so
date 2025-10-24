@@ -1,15 +1,3 @@
-
-// yor_auto_unique_id.go
-// Plugin Yor qui génère automatiquement unique_id avec MD5 du nom de la ressource
-// 
-// Compilation :
-// go mod init yor_plugin
-// go build -buildmode=plugin -o yor_auto_unique_id.so yor_auto_unique_id.go
-//
-// Utilisation :
-// export YOR_CA_NAME_PREFIX="my-prefix"
-// yor tag -d . --custom-tagging ./yor_auto_unique_id.so
-
 package main
 
 import (
@@ -22,7 +10,6 @@ import (
 	"github.com/bridgecrewio/yor/src/common/tagging/tags"
 )
 
-// Tag Group
 type UniqueIDTagGroup struct {
 	tagging.TagGroup
 }
@@ -49,39 +36,41 @@ func (d *UniqueIDTagGroup) InitTagGroup(_ string, skippedTags []string, explicit
 	d.SetTags(d.GetDefaultTags())
 }
 
-// Le Tag ca-name
 type UniqueIDTag struct {
 	tags.Tag
 }
 
 func (t *UniqueIDTag) Init() {
-	t.Key = "ca-name"
+	t.Key = "cacib-name"
 }
 
 func (t *UniqueIDTag) CalculateValue(data interface{}) (tags.ITag, error) {
-	// Convertir en IBlock pour accéder au nom de la ressource
 	block, ok := data.(structure.IBlock)
 	if !ok {
 		return nil, fmt.Errorf("failed to convert data to IBlock")
 	}
-	
-	// Récupérer le nom de la ressource (ex: "aws_s3_bucket.bucket1")
+
+	// Lire env et team depuis les variables d'environnement
+	env := os.Getenv("YOR_ENV")
+	if env == "" {
+		env = "unknown"
+	}
+
+	team := os.Getenv("YOR_TEAM")
+	if team == "" {
+		team = "unknown"
+	}
+
 	resourceID := block.GetResourceID()
-	
-	// Calculer le MD5 du nom de la ressource
+
+	// Calculer le MD5
 	hash := md5.Sum([]byte(resourceID))
 	hashString := hex.EncodeToString(hash[:])
-	
-	// Prendre seulement les 16 premiers caractères du hash
-	hashShort := hashString[:16]
-	
-	// Construire l'EXPRESSION Terraform (pas une valeur calculée)
-	// Format: "${local.ca_name_prefix}-hash16"
-	// Terraform évaluera local.ca_name_prefix lors du apply
-	value := fmt.Sprintf("${local.ca_name_prefix}-%s", hashShort)
-	
+
+	// Construire la valeur finale (TOUT est calculé, pas d'expression Terraform)
+	value := fmt.Sprintf("%s-%s-%s", env, team, hashString)
+
 	return &tags.Tag{Key: t.Key, Value: value}, nil
 }
 
-// Exporter le Tag Group
 var ExtraTagGroups = []interface{}{&UniqueIDTagGroup{}}
