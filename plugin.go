@@ -16,7 +16,7 @@ type UniqueIDTagGroup struct {
 }
 
 func (d *UniqueIDTagGroup) CreateTagsForBlock(block structure.IBlock) error {
-	log.Println("[PLUGIN] CreateTagsForBlock appelé pour:", block.GetResourceID())
+	log.Printf("[PLUGIN] CreateTagsForBlock appelé pour: %s\n", block.GetResourceID())
 	return d.UpdateBlockTags(block, block)
 }
 
@@ -38,6 +38,12 @@ func (d *UniqueIDTagGroup) InitTagGroup(_ string, skippedTags []string, explicit
 	d.SkippedTags = skippedTags
 	d.SpecifiedTags = explicitlySpecifiedTags
 	d.SetTags(d.GetDefaultTags())
+}
+
+// IMPORTANT : Cette méthode est nécessaire pour que Yor reconnaisse le TagGroup
+func (d *UniqueIDTagGroup) GetTagGroupByTags(tagsToApply []string) []tags.ITag {
+	log.Println("[PLUGIN] GetTagGroupByTags appelé avec:", tagsToApply)
+	return d.GetDefaultTags()
 }
 
 type UniqueIDTag struct {
@@ -71,8 +77,21 @@ func (t *UniqueIDTag) CalculateValue(data interface{}) (tags.ITag, error) {
 	value := fmt.Sprintf("%s-%s-%s", env, team, hashString)
 	
 	log.Printf("[PLUGIN] Tag généré: %s = %s\n", t.Key, value)
-	return &tags.Tag{Key: t.Key, Value: value}, nil
+	
+	t.Value = value
+	return t, nil
 }
 
-// IMPORTANT : Essayez cette export
-var TagGroup tagging.ITagGroup = &UniqueIDTagGroup{}
+func init() {
+	log.Println("[PLUGIN] =========== Plugin UniqueID chargé ===========")
+}
+
+// CRITICAL: Le nom doit être exactement "ExternalTagGroups" (avec un 's')
+var ExternalTagGroups []tagging.ITagGroup
+
+func init() {
+	ExternalTagGroups = []tagging.ITagGroup{
+		&UniqueIDTagGroup{},
+	}
+	log.Println("[PLUGIN] ExternalTagGroups initialisé avec", len(ExternalTagGroups), "tag group(s)")
+}
