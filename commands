@@ -3,3 +3,10 @@ grep -r "ExternalTagGroups\|custom-tagging\|plugin.Open" src/
 
 
 nm -D ../new/yor_auto_unique_id.so | grep -E "TagGroup|External|Extra"
+
+cat /data/users/ut3z1p/new/src/common/runner/runner.go | grep -A 20 "plugin.Open"
+
+cat /data/users/ut3z1p/new/src/common/tagging/external/tag_group.go
+
+cat /data/users/ut3z1p/new/src/common/runner/runner.go | grep -B 5 -A 30 "plugin.Open"
+cat /data/users/ut3z1p/new/src/common/tagging/external/tag_group.go | head -100
