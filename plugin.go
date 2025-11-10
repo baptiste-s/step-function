@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	
 	"github.com/bridgecrewio/yor/src/common/structure"
@@ -13,7 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// Configuration du plugin
+// Configuration (optionnelle)
 type PluginConfig struct {
 	CacibName struct {
 		Env  string `yaml:"env"`
@@ -24,52 +23,11 @@ type PluginConfig struct {
 var config PluginConfig
 
 func init() {
-	log.SetOutput(os.Stderr)
-	log.Println("[PLUGIN] =========== Plugin UniqueID initialisé ===========")
-	
-	// Charger la config
-	if err := loadConfig(); err != nil {
-		log.Printf("[PLUGIN] WARNING: Erreur chargement config: %v, utilisation des variables d'env\n", err)
+	// Essayer de charger le fichier de config, sinon on utilise les variables d'env
+	data, err := os.ReadFile("yaml/custom-ca-name.yaml")
+	if err == nil {
+		yaml.Unmarshal(data, &config)
 	}
-}
-
-func loadConfig() error {
-	// Chercher le fichier de config
-	configPaths := []string{
-		"yaml/custom-ca-name.yaml",
-		"./yaml/custom-ca-name.yaml",
-		"../yaml/custom-ca-name.yaml",
-		os.Getenv("YOR_PLUGIN_CONFIG"),
-	}
-	
-	var configFile string
-	for _, path := range configPaths {
-		if path == "" {
-			continue
-		}
-		if _, err := os.Stat(path); err == nil {
-			configFile = path
-			break
-		}
-	}
-	
-	if configFile == "" {
-		return fmt.Errorf("fichier de config introuvable")
-	}
-	
-	log.Printf("[PLUGIN] Chargement de la config depuis: %s\n", configFile)
-	
-	data, err := os.ReadFile(configFile)
-	if err != nil {
-		return err
-	}
-	
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return err
-	}
-	
-	log.Printf("[PLUGIN] Config chargée: env=%s, team=%s\n", config.CacibName.Env, config.CacibName.Team)
-	return nil
 }
 
 type UniqueIDTagGroup struct {
@@ -106,7 +64,7 @@ func (t *UniqueIDTag) CalculateValue(data interface{}) (tags.ITag, error) {
 		return nil, fmt.Errorf("failed to convert data to IBlock")
 	}
 	
-	// Priorité : config file > variables d'env > valeur par défaut
+	// Lire env et team (config > env vars > défaut)
 	env := config.CacibName.Env
 	if env == "" {
 		env = os.Getenv("YOR_ENV")
@@ -123,18 +81,14 @@ func (t *UniqueIDTag) CalculateValue(data interface{}) (tags.ITag, error) {
 		team = "unknown"
 	}
 	
-	// Chercher le yor_trace dans les tags existants et nouveaux
+	// Chercher yor_trace
 	var yorTrace string
-	
-	// Chercher dans les tags existants
 	for _, tag := range block.GetExistingTags() {
 		if tag.GetKey() == "yor_trace" {
 			yorTrace = tag.GetValue()
 			break
 		}
 	}
-	
-	// Si pas trouvé, chercher dans les nouveaux tags
 	if yorTrace == "" {
 		for _, tag := range block.GetNewTags() {
 			if tag.GetKey() == "yor_trace" {
@@ -148,21 +102,15 @@ func (t *UniqueIDTag) CalculateValue(data interface{}) (tags.ITag, error) {
 	var shortID string
 	if yorTrace != "" && len(yorTrace) >= 16 {
 		shortID = yorTrace[:16]
-		log.Printf("[PLUGIN] yor_trace trouvé: %s, utilisation des 16 premiers chars: %s\n", yorTrace, shortID)
 	} else {
-		// Fallback : MD5 du resourceID si yor_trace pas disponible
-		log.Printf("[PLUGIN] WARNING: yor_trace non trouvé, fallback sur MD5 du resourceID\n")
+		// Fallback sur MD5 si pas de yor_trace
 		resourceID := block.GetResourceID()
 		hash := md5.Sum([]byte(resourceID))
 		hashString := hex.EncodeToString(hash[:])
 		shortID = hashString[:16]
 	}
 	
-	// Construire la valeur finale
 	value := fmt.Sprintf("%s-%s-%s", env, team, shortID)
-	
-	log.Printf("[PLUGIN] Tag généré: %s = %s\n", t.Key, value)
-	
 	return &tags.Tag{Key: t.Key, Value: value}, nil
 }
 
@@ -171,9 +119,7 @@ func (t *UniqueIDTag) GetPriority() int {
 }
 
 func (t *UniqueIDTag) GetDescription() string {
-	return "Custom Unique ID tag based on yor_trace"
+	return "Custom Unique ID tag"
 }
 
-var ExtraTagGroups = []interface{}{
-	&UniqueIDTagGroup{},
-}
+var ExtraTagGroups = []interface{}{&UniqueIDTagGroup{}}
