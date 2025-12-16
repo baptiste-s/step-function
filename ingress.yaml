@@ -1,0 +1,21 @@
+# ingress.yaml
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: mon-app
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`mon-app.example.com`) && PathPrefix(`/api`)
+    kind: Rule
+    services:
+    - name: backend
+      port: 8080
+  - match: Host(`mon-app.example.com`)
+    kind: Rule
+    services:
+    - name: frontend
+      port: 80
+  tls:
+    secretName: mon-app-tls
